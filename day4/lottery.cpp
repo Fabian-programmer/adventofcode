@@ -22,7 +22,6 @@ std::uint32_t getHits(const std::string &line) {
   while (issw >> num) {
     winning.push_back(num);
   }
-  std::sort(winning.begin(), winning.end());
 
   // my numbers
   std::vector<std::uint32_t> mine;
@@ -35,8 +34,7 @@ std::uint32_t getHits(const std::string &line) {
   uint32_t hits = 0;
 
   for (const auto &number : winning) {
-    const auto it = std::find(mine.begin(), mine.end(), number);
-    if (it != mine.end()) {
+    if (std::binary_search(mine.begin(), mine.end(), number)) {
       hits++;
     }
   }
@@ -49,7 +47,6 @@ int main() {
   std::uint64_t sum_p1 = 0;
   std::uint64_t sum_p2 = 0;
 
-  std::vector<std::uint32_t> winValues;
   std::vector<std::uint32_t> cardInstances;
   cardInstances.resize(300);
 
@@ -58,7 +55,6 @@ int main() {
     std::string line;
     while (getline(file, line)) {
       const auto points = getHits(line);
-      winValues.push_back(points);
 
       if (points != 0) {
         sum_p1 += std::pow(2, points - 1);
