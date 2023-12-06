@@ -10,14 +10,16 @@ struct tuple {
   std::uint64_t source;
   std::uint64_t range;
 };
+
 bool compareBySource(const tuple &a, const tuple &b) {
   return a.source < b.source;
+}
+bool compareByDestination(const tuple &a, const tuple &b) {
+  return a.destination < b.destination;
 }
 
 void updateVector(std::vector<tuple> &vec, const tuple &input) {
   vec.push_back(input);
-  // perf: can be done once at the end
-  std::sort(vec.begin(), vec.end(), compareBySource);
 }
 
 std::uint64_t getDesination(const std::vector<tuple> &vec,
@@ -38,6 +40,28 @@ std::uint64_t getDesination(const std::vector<tuple> &vec,
   } else {
     const auto range = source - it->source;
     ret = it->destination + range;
+  }
+
+  return ret;
+}
+
+std::uint64_t getSource(const std::vector<tuple> &vec, std::uint64_t dest) {
+
+  auto it = std::lower_bound(vec.begin(), vec.end(), tuple{dest + 1, 0, 0},
+                             compareByDestination);
+
+  if (it != vec.begin()) {
+    --it;
+  }
+
+  auto ret = dest;
+  if (dest < it->destination) {
+    ret = dest;
+  } else if (it->destination + it->range - 1 < dest) {
+    ret = dest;
+  } else {
+    const auto range = dest - it->destination;
+    ret = it->source + range;
   }
 
   return ret;
@@ -116,6 +140,23 @@ int main() {
     file.close();
   }
 
+  // part 1
+  // sorting
+  {
+    std::sort(seedToSoil.begin(), seedToSoil.end(), compareBySource);
+    std::sort(soilToFertilizer.begin(), soilToFertilizer.end(),
+              compareBySource);
+    std::sort(fertilizerToWater.begin(), fertilizerToWater.end(),
+              compareBySource);
+    std::sort(waterToLight.begin(), waterToLight.end(), compareBySource);
+    std::sort(lightToTemperature.begin(), lightToTemperature.end(),
+              compareBySource);
+    std::sort(temperatureToHumidity.begin(), temperatureToHumidity.end(),
+              compareBySource);
+    std::sort(humidityToLocation.begin(), humidityToLocation.end(),
+              compareBySource);
+  }
+
   for (std::uint64_t seed : seeds) {
     seed = getDesination(seedToSoil, seed);
     seed = getDesination(soilToFertilizer, seed);
@@ -128,22 +169,52 @@ int main() {
     smallesValue_p1 = std::min(smallesValue_p1, seed);
   }
 
-  // perf: probably faster, when going backwards e.g. from location --> humidity
-  // --> ...
+  // part 2
+  // sorting
+  {
+    std::sort(seedToSoil.begin(), seedToSoil.end(), compareByDestination);
+    std::sort(soilToFertilizer.begin(), soilToFertilizer.end(),
+              compareByDestination);
+    std::sort(fertilizerToWater.begin(), fertilizerToWater.end(),
+              compareByDestination);
+    std::sort(waterToLight.begin(), waterToLight.end(), compareByDestination);
+    std::sort(lightToTemperature.begin(), lightToTemperature.end(),
+              compareByDestination);
+    std::sort(temperatureToHumidity.begin(), temperatureToHumidity.end(),
+              compareByDestination);
+    std::sort(humidityToLocation.begin(), humidityToLocation.end(),
+              compareByDestination);
+  }
+
+  // only absolute values
   for (std::size_t i = 0; i < seeds.size(); i += 2) {
-    auto current = seeds[i];
-    auto next = current + seeds[i + 1];
-    while (current < next) {
-      auto tmpCurrent = current;
-      tmpCurrent = getDesination(seedToSoil, tmpCurrent);
-      tmpCurrent = getDesination(soilToFertilizer, tmpCurrent);
-      tmpCurrent = getDesination(fertilizerToWater, tmpCurrent);
-      tmpCurrent = getDesination(waterToLight, tmpCurrent);
-      tmpCurrent = getDesination(lightToTemperature, tmpCurrent);
-      tmpCurrent = getDesination(temperatureToHumidity, tmpCurrent);
-      tmpCurrent = getDesination(humidityToLocation, tmpCurrent);
-      smallesValue_p2 = std::min(smallesValue_p2, tmpCurrent);
-      current++;
+    seeds[i + 1] = seeds[i] + seeds[i + 1] - 1;
+  }
+  std::sort(seeds.begin(), seeds.end());
+
+  for (std::size_t locationVal = 1;
+       locationVal < std::numeric_limits<std::size_t>::max(); locationVal++) {
+    auto seed = locationVal;
+    seed = getSource(humidityToLocation, seed);
+    seed = getSource(temperatureToHumidity, seed);
+    seed = getSource(lightToTemperature, seed);
+    seed = getSource(waterToLight, seed);
+    seed = getSource(fertilizerToWater, seed);
+    seed = getSource(soilToFertilizer, seed);
+    seed = getSource(seedToSoil, seed);
+
+    // check if seed is valid
+    if (seed < seeds.front() || seed > seeds.back()) {
+      continue;
+    }
+    auto it = std::lower_bound(seeds.begin(), seeds.end(), seed);
+    if (it != seeds.begin()) {
+      --it;
+    }
+    int index = it - seeds.begin();
+    if (index % 2 == 0) {
+      smallesValue_p2 = locationVal;
+      break;
     }
   }
 
