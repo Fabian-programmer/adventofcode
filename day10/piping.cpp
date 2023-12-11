@@ -171,7 +171,7 @@ public:
   Coordinate startPosition{0, 0};
   std::vector<Coordinate> path;
   std::set<Coordinate> tiles;
-  Direction currentDirection = Direction::SOUTH;
+  Direction currentDirection = Direction::UNKNOWN;
 
   std::vector<std::int8_t> grid;
 };
@@ -188,6 +188,7 @@ int main() {
 
   // this is cheating, but i was too lazy to implement a function to find out orientation
   const auto orientation = -1;
+  grid.currentDirection = SOUTH;
   for (const auto &position : grid.path) {
     grid.addTiles(position, orientation);
   }

@@ -5,10 +5,10 @@ CXX = g++
 CXXFLAGS = -std=c++17 -g -O3 -Wall
 
 # Source file
-SOURCE = piping.cpp
+SOURCE = bigbang.cpp
 
 # Output executable
-OUTPUT = piping.out
+OUTPUT = bigbang.out
 
 # Build rule
 all: $(OUTPUT)
