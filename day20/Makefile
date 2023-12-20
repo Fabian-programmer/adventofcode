@@ -5,10 +5,10 @@ CXX = g++
 CXXFLAGS = -std=c++17 -g -O3 -Wall
 
 # Source file
-SOURCE = xmas.cpp
+SOURCE = broadcast.cpp
 
 # Output executable
-OUTPUT = xmas.out
+OUTPUT = broadcast.out
 
 # Build rule
 all: $(OUTPUT)
