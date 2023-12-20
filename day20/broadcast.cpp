@@ -8,7 +8,6 @@
 #include <vector>
 
 enum ModuleType {
-  BUTTON,
   BROADCASTER,
   FLIPFLOP,
   CONJUNCTION
@@ -17,13 +16,12 @@ enum ModuleType {
 enum PulseType {
   LOW,
   HIGH,
-  UNKNOWN,
 };
 
 struct Pulse {
-  std::string sender = "unknown";
-  std::string receiver = "unknown";
-  PulseType type = PulseType::UNKNOWN;
+  std::string sender;
+  std::string receiver;
+  PulseType type;
 };
 
 std::ostream &operator<<(std::ostream &os, const Pulse &pulse) {
@@ -130,9 +128,7 @@ std::string trimWhitespaces(const std::string &str) {
   return (start < end ? std::string(start, end) : std::string());
 }
 
-std::int32_t g_i = 0;
-
-std::pair<std::int64_t, std::int64_t> pushButton(std::map<std::string, std::unique_ptr<Module>> &moduleMap) {
+std::pair<std::int64_t, std::int64_t> pushButton(std::map<std::string, std::unique_ptr<Module>> &moduleMap, std::map<std::string, std::int32_t> &rxLow, const std::int32_t i) {
 
   std::queue<Pulse> que;
   que.push({"button", "broadcaster", PulseType::LOW});
@@ -157,14 +153,14 @@ std::pair<std::int64_t, std::int64_t> pushButton(std::map<std::string, std::uniq
     auto &module = moduleMap.at(currentPulse.receiver);
     const auto nextPulses = module->recvsend(currentPulse);
 
-    // lk zv sp xt
-    if (currentPulse.receiver == "lk" || currentPulse.receiver == "zv" || currentPulse.receiver == "sp" || currentPulse.receiver == "xt") {
+    const auto it = rxLow.find(currentPulse.receiver);
+    if (it != rxLow.end()) {
       auto conjunctionModule = static_cast<Conjunction *>(moduleMap.at(currentPulse.receiver).get());
 
       const auto allHigh = conjunctionModule->allHigh();
 
       if (!allHigh) {
-        std::cout << currentPulse.receiver << ": " << g_i << "\n";
+        it->second = i;
       }
     }
 
@@ -226,16 +222,42 @@ int main() {
     }
   }
 
+  // get the cycle when these conjunctions return a high pulse
+  std::map<std::string, std::int32_t> rxLow;
+  rxLow["lk"] = 0;
+  rxLow["zv"] = 0;
+  rxLow["sp"] = 0;
+  rxLow["xt"] = 0;
+
   std::int64_t lowPulse = 0;
   std::int64_t highPulse = 0;
 
-  for (std::int64_t i = 0; i < 20000; ++i) {
-    const auto [low, high] = pushButton(moduleMap);
-    lowPulse += low;
-    highPulse += high;
-    g_i++;
+  for (std::int64_t i = 0; i < 5000; ++i) {
+    bool anyValueZero = false;
+    const auto [low, high] = pushButton(moduleMap, rxLow, i);
+    if (i < 1000) {
+      lowPulse += low;
+      highPulse += high;
+    }
+
+    // check if we have for every cycle the first repetition
+    for (const auto &[_, cycle] : rxLow) {
+      if (cycle == 0) {
+        anyValueZero = true;
+        break;
+      }
+    }
+
+    if (anyValueZero == false) {
+      break;
+    }
   }
 
-  std::cout << "low: " << lowPulse << " high: " << highPulse << "\n";
   std::cout << "Part1: " << lowPulse * highPulse << "\n";
+
+  std::int64_t cycleRxLow = 1;
+  for (const auto &[_, cycle] : rxLow) {
+    cycleRxLow *= cycle + 1;
+  }
+  std::cout << "Part2: " << cycleRxLow << "\n";
 }
