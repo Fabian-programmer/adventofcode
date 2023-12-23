@@ -7,164 +7,113 @@
 #include <vector>
 
 constexpr int floor = 1;
-constexpr int firstId = 2;
+constexpr int firstBrick = floor + 1;
+
+template <typename T>
+void push_unique(std::vector<T> &vec, const T &value) {
+  if (std::find(vec.begin(), vec.end(), value) == vec.end()) {
+    vec.push_back(value);
+  }
+}
 
 class TreeNode {
 public:
-  int value;
+  int id;
   std::vector<TreeNode *> children;
-  TreeNode *parent;
+  std::vector<TreeNode *> parent;
 
   // Constructor
-  TreeNode(int val) : value(val) {}
-
-  // Destructor to free memory recursively
-  ~TreeNode() {
-    for (TreeNode *child : children) {
-      delete child;
-    }
-  }
+  TreeNode(int nodeId) : id(nodeId) {}
 };
 
 class Tree {
 public:
   TreeNode *root;
+  std::unordered_map<int, TreeNode *> idToNodeMap;
 
-  // Constructor
-  Tree(int rootValue) {
-    root = new TreeNode(rootValue);
+  Tree(int rootId) {
+    root = new TreeNode(rootId);
+    idToNodeMap[rootId] = root;
   }
 
-  // Destructor to free memory
-  ~Tree() {
-    delete root;
-  }
+  void addChild(int parentId, int childId) {
 
-  // Function to add a child to a node
-  void addChild(int parentValue, int childValue) {
-    TreeNode *parentNode = findNode(root, parentValue);
+    TreeNode *parentNode = idToNodeMap[parentId];
+    TreeNode *childNode;
 
-    TreeNode *childNode = new TreeNode(childValue);
+    if (idToNodeMap.find(childId) == idToNodeMap.end()) {
+      childNode = new TreeNode(childId);
+    } else {
+      childNode = idToNodeMap[childId];
+    }
+
     parentNode->children.push_back(childNode);
-    childNode->parent = parentNode;
+    childNode->parent.push_back(parentNode);
+    idToNodeMap[childId] = childNode;
   }
 
-  std::vector<int> findParents(int targetValue) {
+  std::vector<int> findParent(int targetId) {
     std::vector<int> parents;
-    std::queue<TreeNode *> q;
-    q.push(root);
+    const auto parentNodes = idToNodeMap[targetId]->parent;
 
-    while (!q.empty()) {
-      TreeNode *current = q.front();
-      q.pop();
-
-      // Check if the current node has the target value as a child
-      for (TreeNode *child : current->children) {
-        if (child->value == targetValue) {
-          parents.push_back(child->parent->value);
-        }
-        q.push(child);
-      }
+    for (const auto &node : parentNodes) {
+      parents.push_back(node->id);
     }
 
     return parents;
   }
 
-private:
-  // Function to find a node with a specific value in the tree
-  TreeNode *findNode(TreeNode *currentNode, int value) {
-    if (!currentNode) {
-      return nullptr;
+  std::vector<int> findChildren(int targetId) {
+    std::vector<int> children;
+    const auto childrenNodes = idToNodeMap[targetId]->children;
+
+    for (const auto &node : childrenNodes) {
+      children.push_back(node->id);
     }
 
-    if (currentNode->value == value) {
-      return currentNode;
-    }
-
-    for (TreeNode *child : currentNode->children) {
-      TreeNode *foundNode = findNode(child, value);
-      if (foundNode) {
-        return foundNode;
-      }
-    }
-
-    return nullptr;
-  }
-};
-int countChildren(Tree &tree, int targetValue) {
-  int count = 0;
-
-  // Use BFS to traverse the tree
-  std::queue<TreeNode *> q;
-  q.push(tree.root);
-
-  while (!q.empty()) {
-    TreeNode *current = q.front();
-    q.pop();
-
-    // Check if the current node has the target value
-    if (current->value == targetValue) {
-      count += current->children.size();
-    }
-
-    // Enqueue the children for further exploration
-    for (TreeNode *child : current->children) {
-      q.push(child);
-    }
+    return children;
   }
 
-  return count;
-}
-int countParents(Tree &tree, int targetValue) {
-  int count = 0;
+  std::vector<int> findAllChildrenAndStopAtFork(const int parentId) {
+    std::vector<int> childrenIds;
+    std::set<int> visited;
+    std::queue<TreeNode *> q;
 
-  // Use BFS to traverse the tree
-  std::queue<TreeNode *> q;
-  q.push(tree.root);
-
-  while (!q.empty()) {
-    TreeNode *current = q.front();
-    q.pop();
-
-    // Check if the current node has the target value
-    if (current->value == targetValue) {
-      count++;
+    for (const auto &children : idToNodeMap[parentId]->children) {
+      q.push(children);
     }
+    visited.insert(parentId);
 
-    // Enqueue the children for further exploration
-    for (TreeNode *child : current->children) {
-      q.push(child);
-    }
-  }
-
-  return count;
-}
-
-void printTreeBFS(TreeNode *root) {
-  if (!root) {
-    return;
-  }
-
-  std::queue<TreeNode *> q;
-  q.push(root);
-
-  while (!q.empty()) {
-    int levelSize = q.size();
-
-    for (int i = 0; i < levelSize; ++i) {
+    while (!q.empty()) {
       TreeNode *current = q.front();
       q.pop();
 
-      std::cout << current->value << " ";
+      const auto parents = findParent(current->id);
 
-      for (TreeNode *child : current->children) {
-        q.push(child);
+      bool hasFork = false;
+      for (const auto &parent : parents) {
+        // parent which hasnt been visited, is another branch.
+        if (visited.count(parent) == 0) {
+          hasFork = true;
+          break;
+        }
+      }
+
+      if (!hasFork) {
+        // Add the ID of the current node to the result set
+        push_unique(childrenIds, current->id);
+
+        // Enqueue all children of the current node
+        for (TreeNode *child : current->children) {
+          q.push(child);
+        }
+        visited.insert(current->id);
       }
     }
 
-    std::cout << std::endl;
+    return childrenIds;
   }
-}
+};
 
 struct Coordinate {
   int x;
@@ -200,36 +149,20 @@ class Grid {
 public:
   Grid(int sizeX, int sizeY, int sizeZ) : sizeX(sizeX), sizeY(sizeY), sizeZ(sizeZ) {
     data.resize(sizeX, std::vector<std::vector<int>>(sizeY, std::vector<int>(sizeZ, 0)));
-    defaultGrid();
-  }
-  void defaultGrid() {
-    for (int x = 0; x < sizeX; ++x) {
-      for (int y = 0; y < sizeY; ++y) {
-        for (int z = 0; z < sizeZ; ++z) {
-          // floor becomes 1, everything else 0
-          data[x][y][z] = !z;
-        }
-      }
-    }
   }
 
-  int &at(const Coordinate coord) {
+  int &at(const Coordinate &coord) {
     return data[coord.x][coord.y][coord.z];
   }
 
-  int at(const Coordinate coord) const {
+  int at(const Coordinate &coord) const {
     return data[coord.x][coord.y][coord.z];
   }
 
   void setBrick(const Brick &brick) {
 
-    Coordinate start = brick.start;
-    Coordinate end = brick.end;
-    // Ensure the range is a straight line
-    if (!(start.x == end.x || start.y == end.y || start.z == end.z)) {
-      std::cerr << "Error: Range must be a straight line.\n";
-      return;
-    }
+    const auto start = brick.start;
+    const auto end = brick.end;
 
     for (int x = std::min(start.x, end.x); x <= std::max(start.x, end.x); ++x) {
       for (int y = std::min(start.y, end.y); y <= std::max(start.y, end.y); ++y) {
@@ -240,86 +173,40 @@ public:
     }
   }
 
-  std::vector<int> whatsUnderTheBrick(const Brick &brick) {
+  std::vector<int> whatsOverTheBrick(const Brick &brick) {
 
-    std::set<int> underIt;
+    std::set<int> overIt;
 
     Coordinate start = brick.start;
     Coordinate end = brick.end;
 
     for (int x = std::min(start.x, end.x); x <= std::max(start.x, end.x); ++x) {
       for (int y = std::min(start.y, end.y); y <= std::max(start.y, end.y); ++y) {
-        const auto z = std::min(start.z, end.z);
-        const auto under = this->at({x, y, z - 1});
-        if (under != 0) {
-          underIt.insert(under);
+        const auto z = std::max(start.z, end.z);
+        const auto over = this->at({x, y, z + 1});
+        if (over != 0) {
+          overIt.insert(over);
         }
       }
     }
 
-    return {underIt.begin(), underIt.end()};
+    return {overIt.begin(), overIt.end()};
   }
 
   int findHighestZBelowBrick(const Brick &brick) const {
-    int highestZ = 0;
+    int highestZ = -1;
 
     for (int x = std::min(brick.start.x, brick.end.x); x <= std::max(brick.start.x, brick.end.x); ++x) {
       for (int y = std::min(brick.start.y, brick.end.y); y <= std::max(brick.start.y, brick.end.y); ++y) {
-        for (int z = 1; z < sizeZ; ++z) {
+        for (int z = 0; z < sizeZ; ++z) {
           if (this->at({x, y, z}) != 0) {
-            highestZ = std::max(highestZ, z);
+            highestZ = std::max(z, highestZ);
           }
         }
       }
     }
 
     return highestZ;
-  }
-
-  void displayGridXZ() const {
-    for (int z = sizeZ - 1; z >= 0; --z) {
-      for (int x = 0; x < sizeX; ++x) {
-        // Find the highest occupied y value at this (x, z) position
-        int highestY = -1;
-        for (int y = sizeY - 1; y >= 0; --y) {
-          if (this->at({x, y, z}) != 0) {
-            highestY = y;
-            break;
-          }
-        }
-
-        // Print the highest occupied y value or a dot if no occupation
-        if (highestY != -1) {
-          std::cout << this->at({x, highestY, z});
-        } else {
-          std::cout << ".";
-        }
-      }
-      std::cout << std::endl;
-    }
-  }
-
-  void displayGridYZ() const {
-    for (int z = sizeZ - 1; z >= 0; --z) {
-      for (int y = 0; y < sizeY; ++y) {
-        // Find the highest occupied x value at this (y, z) position
-        int highestX = -1;
-        for (int x = sizeX - 1; x >= 0; --x) {
-          if (this->at({x, y, z}) != 0) {
-            highestX = x;
-            break;
-          }
-        }
-
-        // Print the highest occupied y value or a dot if no occupation
-        if (highestX != -1) {
-          std::cout << this->at({highestX, y, z});
-        } else {
-          std::cout << ".";
-        }
-      }
-      std::cout << std::endl;
-    }
   }
 
 private:
@@ -337,7 +224,7 @@ int main() {
   std::vector<Brick> bricks;
   std::vector<Brick> fallenBricks;
 
-  int id = firstId;
+  int brickId = firstBrick;
   // Initialize modules
   if (file.is_open()) {
     while (getline(file, line)) {
@@ -364,15 +251,17 @@ int main() {
       ss.ignore(); // Ignore the comma
       ss >> z2;
 
-      Brick brick = {{x1, y1, z1}, {x2, y2, z2}, id};
+      Brick brick = {{x1, y1, z1}, {x2, y2, z2}, brickId};
       bricks.push_back(brick);
-      id++;
+      brickId++;
     }
   }
 
-  std::sort(bricks.begin(), bricks.end(), compareLowestZ);
-
   Grid grid(11, 11, 350);
+  Brick floorBrick{{0, 0, 0}, {10, 10, 0}, floor};
+  bricks.push_back(floorBrick);
+
+  std::sort(bricks.begin(), bricks.end(), compareLowestZ);
 
   for (const auto &brick : bricks) {
     const auto z = grid.findHighestZBelowBrick(brick) + 1;
@@ -386,42 +275,33 @@ int main() {
   auto tree = Tree(floor);
 
   for (const auto fallenBrick : fallenBricks) {
-    const auto bricksUnder = grid.whatsUnderTheBrick(fallenBrick);
-    if (bricksUnder.empty()) {
-      tree.addChild(floor, fallenBrick.id);
-      continue;
-    }
-
-    for (const auto under : bricksUnder) {
-      tree.addChild(under, fallenBrick.id);
-      continue;
+    const auto bricksOver = grid.whatsOverTheBrick(fallenBrick);
+    for (const auto over : bricksOver) {
+      tree.addChild(fallenBrick.id, over);
     }
   }
 
-  // printTreeBFS(tree.root);
-  // std::cout << "\n";
-
   std::set<int> removeBricks;
-
   std::set<int> keepBricks;
   std::set<int> maybeRemoveBricks;
 
-  for (int i = firstId; i < id; i++) {
-    const auto parents = tree.findParents(i);
-    const auto children = countChildren(tree, i);
+  for (auto brick = firstBrick; brick < brickId; brick++) {
+    const auto parents = tree.findParent(brick);
+    const auto children = tree.findChildren(brick);
 
     // nothing above. Safe to remove
-    if (children == 0) {
-      removeBricks.insert(i);
-      continue;
+    if (children.empty()) {
+      removeBricks.insert(brick);
     }
 
     // only one under. Have to be kept
     if (parents.size() == 1) {
       for (int item : parents) {
+        if (item == floor) {
+          continue;
+        }
         keepBricks.insert(item);
       }
-      continue;
     }
 
     // two under. Maybe can be removed. If it doesn't have to be kept
@@ -433,11 +313,17 @@ int main() {
     }
   }
 
-  for (int brick : maybeRemoveBricks) {
-    if (keepBricks.find(brick) == keepBricks.end()) {
-      removeBricks.insert(brick);
+  for (const auto brickId : maybeRemoveBricks) {
+    if (keepBricks.find(brickId) == keepBricks.end()) {
+      removeBricks.insert(brickId);
     }
   }
 
+  int brickWillFall = 0;
+  for (auto brickId : keepBricks) {
+    brickWillFall += tree.findAllChildrenAndStopAtFork(brickId).size();
+  }
+
   std::cout << "Removable Bricks: " << removeBricks.size() << "\n";
+  std::cout << "Bricks will fall: " << brickWillFall << "\n";
 }
