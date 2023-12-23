@@ -12,32 +12,39 @@ enum Direction {
   SOUTH,
 };
 
-struct Node {
-public:
-  Node(std::int32_t x, std::int32_t y) : x(x), y(y) {}
-  Node(std::int32_t x, std::int32_t y, Direction dir)
-      : x(x), y(y), direction(dir) {}
-
+struct Coordinate {
   std::int32_t x;
   std::int32_t y;
+  bool operator==(const Coordinate &other) const {
+    return x == other.x && y == other.y;
+  }
+
+  friend std::ostream &operator<<(std::ostream &os, const Coordinate &node) {
+    os << "(" << node.x << ", " << node.y << ")";
+    return os;
+  }
+};
+
+struct Node {
+public:
+  Node(std::int32_t x, std::int32_t y) : pos({x, y}) {}
+  Node(std::int32_t x, std::int32_t y, Direction dir)
+      : pos({x, y}), direction(dir) {}
 
   Direction direction;
+  Coordinate pos;
   std::int32_t moves;
   std::int32_t heatloss;
 
   bool operator==(const Node &other) const {
-    return x == other.x && y == other.y;
+    return pos == other.pos && moves == other.moves &&
+           direction == other.direction;
   }
 
-  friend std::ostream &operator<<(std::ostream &os, const Node &node) {
-    os << "(" << node.x << ", " << node.y << ")";
-    return os;
-  }
-
-  Node goEast() const { return Node(this->x + 1, this->y, EAST); }
-  Node goSouth() const { return Node(this->x, this->y + 1, SOUTH); }
-  Node goWest() const { return Node(this->x - 1, this->y, WEST); }
-  Node goNorth() const { return Node(this->x, this->y - 1, NORTH); }
+  Node goEast() const { return Node(this->pos.x + 1, this->pos.y, EAST); }
+  Node goSouth() const { return Node(this->pos.x, this->pos.y + 1, SOUTH); }
+  Node goWest() const { return Node(this->pos.x - 1, this->pos.y, WEST); }
+  Node goNorth() const { return Node(this->pos.x, this->pos.y - 1, NORTH); }
 
   Node goStraight() const {
 
@@ -101,7 +108,7 @@ public:
       file.close();
     }
   }
-  std::int32_t at(Node coord) const {
+  std::int32_t at(Coordinate coord) const {
     static auto outOfBoundsValue = std::numeric_limits<int>::max();
     if (coord.x < 0 || coord.x >= cols) {
       return outOfBoundsValue;
@@ -113,7 +120,7 @@ public:
     return grid[coord.x + coord.y * cols];
   }
 
-  std::int32_t &at(Node coord) {
+  std::int32_t &at(Coordinate coord) {
     static auto outOfBoundsValue = std::numeric_limits<int>::max();
     if (coord.x < 0 || coord.x >= cols) {
       return outOfBoundsValue;
@@ -128,7 +135,7 @@ public:
   void displayGrid() {
     for (std::int32_t y = 0; y < rows; ++y) {
       for (std::int32_t x = 0; x < cols; ++x) {
-        std::cout << this->at(Node(x, y)) << " ";
+        std::cout << this->at({x, y}) << " ";
       }
       std::cout << "\n";
     }
@@ -141,22 +148,22 @@ public:
   std::vector<std::int32_t> grid;
 };
 
-struct Comparator {
+struct CompareHeat {
   bool operator()(const Node &s1, const Node &s2) const {
     return s1.heatloss > s2.heatloss;
   }
 };
 
-struct hasher {
+struct Hasher {
   std::size_t operator()(const Node &node) const {
-    return node.x + node.y + node.direction + node.moves;
+    return node.pos.x + node.pos.y;
   }
 };
 
 std::int32_t dijkstra(const Grid &grid, Node start, const Node &goal) {
 
-  std::priority_queue<Node, std::vector<Node>, Comparator> pq;
-  std::unordered_set<Node, hasher> visited;
+  std::priority_queue<Node, std::vector<Node>, CompareHeat> pq;
+  std::unordered_set<Node, Hasher> visited;
 
   start.direction = EAST;
   start.heatloss = 0;
@@ -172,20 +179,22 @@ std::int32_t dijkstra(const Grid &grid, Node start, const Node &goal) {
     if (visited.find(current) != visited.end()) {
       continue;
     }
-
     visited.insert(current);
 
-    if (current == goal) {
+    if (current.pos == goal.pos) {
       return current.heatloss;
     }
 
     std::vector<Node> nextNodes;
     nextNodes.push_back(current.goRight());
-    nextNodes.push_back(current.goStraight());
     nextNodes.push_back(current.goLeft());
 
+    if (current.moves < 2) {
+      nextNodes.push_back(current.goStraight());
+    }
+
     for (auto &next : nextNodes) {
-      const auto heatloss = grid.at(next);
+      const auto heatloss = grid.at(next.pos);
 
       // out of bounds
       if (heatloss == std::numeric_limits<int>::max()) {
@@ -193,14 +202,11 @@ std::int32_t dijkstra(const Grid &grid, Node start, const Node &goal) {
       }
 
       next.heatloss = current.heatloss + heatloss;
-      next.moves = 0;
 
       if (next.direction == current.direction) {
         next.moves = current.moves + 1;
-      }
-
-      if (next.moves == 3) {
-        continue;
+      } else {
+        next.moves = 0;
       }
 
       pq.push(next);
