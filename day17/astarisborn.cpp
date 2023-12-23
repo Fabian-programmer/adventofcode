@@ -2,36 +2,83 @@
 #include <iostream>
 #include <limits>
 #include <queue>
-#include <set>
+#include <unordered_set>
 #include <vector>
+
+enum Direction {
+  NORTH,
+  WEST,
+  EAST,
+  SOUTH,
+};
 
 struct Node {
 public:
-  Node(std::uint64_t x, std::uint64_t y) : x(x), y(y) {}
+  Node(std::int32_t x, std::int32_t y) : x(x), y(y) {}
+  Node(std::int32_t x, std::int32_t y, Direction dir)
+      : x(x), y(y), direction(dir) {}
 
-  std::int64_t x;
-  std::int64_t y;
-  std::int32_t cost;
+  std::int32_t x;
+  std::int32_t y;
 
-  bool operator>(const Node &other) const { return cost > other.cost; }
+  Direction direction;
+  std::int32_t moves;
+  std::int32_t heatloss;
 
   bool operator==(const Node &other) const {
     return x == other.x && y == other.y;
   }
 
-  bool operator!=(const Node &other) const {
-    return x != other.x || y != other.y;
+  friend std::ostream &operator<<(std::ostream &os, const Node &node) {
+    os << "(" << node.x << ", " << node.y << ")";
+    return os;
   }
 
-  Node goRight() const { return Node(this->x + 1, this->y); }
-  Node goDown() const { return Node(this->x, this->y + 1); }
-  Node goLeft() const { return Node(this->x - 1, this->y); }
-  Node goUp() const { return Node(this->x, this->y - 1); }
-};
+  Node goEast() const { return Node(this->x + 1, this->y, EAST); }
+  Node goSouth() const { return Node(this->x, this->y + 1, SOUTH); }
+  Node goWest() const { return Node(this->x - 1, this->y, WEST); }
+  Node goNorth() const { return Node(this->x, this->y - 1, NORTH); }
 
-struct CompareNodes {
-  bool operator()(const Node &lhs, const Node &rhs) const {
-    return lhs.cost > rhs.cost; // or any other comparison logic
+  Node goStraight() const {
+
+    if (this->direction == NORTH) {
+      return goNorth();
+    }
+    if (this->direction == SOUTH) {
+      return goSouth();
+    }
+    if (this->direction == EAST) {
+      return goEast();
+    }
+    return goWest();
+  }
+
+  Node goLeft() const {
+
+    if (this->direction == NORTH) {
+      return goWest();
+    }
+    if (this->direction == SOUTH) {
+      return goEast();
+    }
+    if (this->direction == EAST) {
+      return goNorth();
+    }
+    return goSouth();
+  }
+
+  Node goRight() const {
+
+    if (this->direction == NORTH) {
+      return goEast();
+    }
+    if (this->direction == SOUTH) {
+      return goWest();
+    }
+    if (this->direction == EAST) {
+      return goSouth();
+    }
+    return goNorth();
   }
 };
 
@@ -94,64 +141,80 @@ public:
   std::vector<std::int32_t> grid;
 };
 
-void dijkstra(const Grid &grid, const Node &start) {
+struct Comparator {
+  bool operator()(const Node &s1, const Node &s2) const {
+    return s1.heatloss > s2.heatloss;
+  }
+};
 
-  auto distance = grid;
-  std::fill(distance.grid.begin(), distance.grid.end(),
-            std::numeric_limits<int>::max());
+struct hasher {
+  std::size_t operator()(const Node &node) const {
+    return node.x + node.y + node.direction + node.moves;
+  }
+};
 
-  std::set<Node, CompareNodes> visited;
+std::int32_t dijkstra(const Grid &grid, Node start, const Node &goal) {
 
-  std::priority_queue<Node, std::vector<Node>, std::greater<Node>> pq;
+  std::priority_queue<Node, std::vector<Node>, Comparator> pq;
+  std::unordered_set<Node, hasher> visited;
 
-  distance.at(start) = grid.at(start);
+  start.direction = EAST;
+  start.heatloss = 0;
+  start.moves = 0;
+  pq.push(start);
+
+  start.direction = NORTH;
   pq.push(start);
 
   while (!pq.empty()) {
     Node current = pq.top();
     pq.pop();
+    if (visited.find(current) != visited.end()) {
+      continue;
+    }
 
     visited.insert(current);
 
+    if (current == goal) {
+      return current.heatloss;
+    }
+
     std::vector<Node> nextNodes;
-    nextNodes.push_back(current.goUp());
-    nextNodes.push_back(current.goDown());
-    nextNodes.push_back(current.goLeft());
     nextNodes.push_back(current.goRight());
+    nextNodes.push_back(current.goStraight());
+    nextNodes.push_back(current.goLeft());
 
     for (auto &next : nextNodes) {
-      if (visited.count(next)) {
-        continue;
-      }
-      const auto costs = grid.at(next);
+      const auto heatloss = grid.at(next);
 
       // out of bounds
-      if (costs == std::numeric_limits<int>::max()) {
+      if (heatloss == std::numeric_limits<int>::max()) {
         continue;
       }
 
-      const auto newCosts = costs + distance.at(current);
+      next.heatloss = current.heatloss + heatloss;
+      next.moves = 0;
 
-      if (distance.at(next) > newCosts) {
-        distance.at(next) = newCosts;
-        next.cost = newCosts;
-        pq.push(next);
+      if (next.direction == current.direction) {
+        next.moves = current.moves + 1;
       }
+
+      if (next.moves == 3) {
+        continue;
+      }
+
+      pq.push(next);
     }
   }
 
-  distance.displayGrid();
+  return 0;
 }
 
 int main() {
 
   auto grid = Grid("input");
-  grid.displayGrid();
-  std::cout << "\n";
 
-  dijkstra(grid, {0, 0});
-
-  // int goalRow = 12, goalCol = 12;
+  std::cout << dijkstra(grid, {0, 0}, {grid.cols - 1, grid.rows - 1}) << "\n";
 
   return 0;
 }
