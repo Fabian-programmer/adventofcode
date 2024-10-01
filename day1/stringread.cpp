@@ -1,74 +1,74 @@
-#include <fstream>
+#include "algorithm"
+#include "input.hpp"
 #include <iostream>
-#include <map>
-#include <sstream>
 
-std::int32_t getCalibrationValue(const std::string &str) {
+constexpr std::array<std::pair<std::string_view, std::uint8_t>, 9> numbers = {
+    {{"one", 1},
+     {"two", 2},
+     {"three", 3},
+     {"four", 4},
+     {"five", 5},
+     {"six", 6},
+     {"seven", 7},
+     {"eight", 8},
+     {"nine", 9}}};
 
-  const std::map<std::string, std ::string> numbers = {
-      {"one", "1"},   {"two", "2"},   {"three", "3"},
-      {"four", "4"},  {"five", "5"},  {"six", "6"},
-      {"seven", "7"}, {"eight", "8"}, {"nine", "9"},
-  };
+std::uint8_t getCalibrationValue(const std::string_view str,
+                                 const bool letteredNumber = false) {
+  std::array<std::uint8_t, 2> number = {0, 0};
 
-  std::stringstream ss;
-
-  for (auto it = str.begin(); it != str.end(); it++) {
-    if (std::isdigit(*it)) {
-      ss << *it;
-      goto labelrev;
+  for (std::size_t i = 0; i < str.size(); ++i) {
+    if (std::isdigit(str[i])) {
+      number[0] = str[i] - '0';
+      goto labelbackwards;
     }
 
-    std::string word(str.begin(), it);
-    for (const auto &key : numbers) {
-      if (word.find(key.first) != std::string::npos) {
-        ss << key.second;
-        goto labelrev;
+    if (letteredNumber) {
+      const std::string_view letteredNumber = str.substr(i);
+
+      for (const auto &[key, value] : numbers) {
+        if (letteredNumber.starts_with(key)) {
+          number[0] = value;
+          goto labelbackwards;
+        }
       }
     }
   }
 
-labelrev:
-  const std::map<std::string, std ::string> revnumbers = {
-      {"eno", "1"},   {"owt", "2"},   {"eerht", "3"},
-      {"ruof", "4"},  {"evif", "5"},  {"xis", "6"},
-      {"neves", "7"}, {"thgie", "8"}, {"enin", "9"},
-  };
-
-  for (auto it = str.rbegin(); it != str.rend(); it++) {
-
-    if (std::isdigit(*it)) {
-      ss << *it;
-      goto labelret;
+labelbackwards:
+  for (std::size_t i = str.size() - 1; i >= 0; --i) {
+    if (std::isdigit(str[i])) {
+      number[1] = str[i] - '0';
+      goto labelreturn;
     }
 
-    std::string word(str.rbegin(), it);
-    for (const auto &key : revnumbers) {
-      if (word.find(key.first) != std::string::npos) {
-        ss << key.second;
-        goto labelret;
+    if (letteredNumber) {
+      const std::string_view letteredNumber = str.substr(0, i);
+
+      for (const auto &[key, value] : numbers) {
+        if (letteredNumber.ends_with(key)) {
+          number[1] = value;
+          goto labelreturn;
+        }
       }
     }
   }
 
-labelret:
-  return stoi(ss.str());
+labelreturn:
+  return number[0] * 10 + number[1];
 }
 
 int main() {
+  std::uint32_t sum_p1 = 0;
+  std::uint32_t sum_p2 = 0;
 
-  std::ifstream file("input");
-  std::uint64_t sum = 0;
-
-  if (file.is_open()) {
-    std::string line;
-    while (getline(file, line)) {
-      sum += getCalibrationValue(line);
-    }
-    file.close();
+  for (const auto item : compileTimeInput) {
+    sum_p1 += getCalibrationValue(item, false);
+    sum_p2 += getCalibrationValue(item, true);
   }
 
-  std::cout << "Sum of first and last number: " << sum << "\n";
+  std::cout << "Part1: Sum of first and last number: " << sum_p1 << "\n";
+  std::cout << "Part2: Sum of first and last number: " << sum_p2 << "\n";
 
   return 0;
 }

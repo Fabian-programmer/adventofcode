@@ -1,9 +1,9 @@
 
 # Compiler
-CXX = g++
+CXX = g++-10
 
 # Compiler flags
-CXXFLAGS = -std=c++17 -O3 -Wall
+CXXFLAGS = -std=c++2a -O3 -Wall
 
 # Source file
 SOURCE = stringread.cpp

@@ -1,0 +1,26 @@
+| Day | Initial Time | Improved Time |
+| --- | ------------ | ------------- |
+| 1   | 6ms          | 1ms           |
+| 2   | 0ms          | 0ms           |
+| 3   | 0ms          | 0ms           |
+| 4   | 0ms          | 0ms           |
+| 5   | 0ms          | 0ms           |
+| 6   | 0ms          | 0ms           |
+| 7   | 0ms          | 0ms           |
+| 8   | 0ms          | 0ms           |
+| 9   | 0ms          | 0ms           |
+| 10  | 0ms          | 0ms           |
+| 11  | 0ms          | 0ms           |
+| 12  | 0ms          | 0ms           |
+| 13  | 0ms          | 0ms           |
+| 14  | 0ms          | 0ms           |
+| 15  | 0ms          | 0ms           |
+| 16  | 0ms          | 0ms           |
+| 17  | 0ms          | 0ms           |
+| 18  | 0ms          | 0ms           |
+| 19  | 0ms          | 0ms           |
+| 20  | 0ms          | 0ms           |
+| 21  | 0ms          | 0ms           |
+| 22  | 0ms          | 0ms           |
+| 23  | 0ms          | 0ms           |
+| 24  | 0ms          | 0ms           |
